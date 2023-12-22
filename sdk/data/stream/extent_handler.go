@@ -15,8 +15,8 @@
 package stream
 
 import (
+	"context"
 	"fmt"
-	"github.com/cubefs/cubefs/util/stat"
 	"net"
 	"sync/atomic"
 	"time"
@@ -26,6 +26,7 @@ import (
 	"github.com/cubefs/cubefs/util"
 	"github.com/cubefs/cubefs/util/errors"
 	"github.com/cubefs/cubefs/util/log"
+	"github.com/cubefs/cubefs/util/stat"
 )
 
 // State machines
@@ -450,6 +451,16 @@ func (eh *ExtentHandler) appendExtentKey() (err error) {
 			 * create a new eh to do recovery.
 			 */
 			_ = eh.stream.extents.Append(eh.key, false)
+		}
+
+		if eh.key.PartitionId > 0 && eh.stream.enableCacheAutoPrepare() {
+			prepareReq := &PrepareRemoteCacheRequest{
+				ctx:   context.Background(),
+				ek:    eh.key,
+				inode: eh.stream.inode,
+			}
+			eh.stream.sendToPrepareRomoteCacheChan(prepareReq)
+			// eh.stream.prepareRemoteCache(ctx, ek)
 		}
 	}
 	if err == nil {
